@@ -1,0 +1,1023 @@
+Creating a comprehensive database schema for an educational management system that incorporates all the modules discussed involves multiple tables with defined relationships. Below is a detailed schema, along with explanations of each table.
+
+### Complete Database Schema
+
+#### 1. **Users Table**
+This table will store information about all users in the system, including students, teachers, and parents.
+
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('student', 'teacher', 'parent', 'admin') NOT NULL,
+    phone VARCHAR(20),
+    profile_picture VARCHAR(255),
+    bio TEXT,
+    stripe_customer_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### 2. **Categories Table**
+This table categorizes courses.
+
+```sql
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### 3. **Courses Table**
+This table stores information about courses.
+
+```sql
+CREATE TABLE courses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_free BOOLEAN DEFAULT FALSE,
+    teacher_id INT,
+    prerequisites TEXT,
+    duration INT, -- Duration in hours
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+#### 4. **Course Categories Table**
+This table establishes a many-to-many relationship between courses and categories.
+
+```sql
+CREATE TABLE course_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT,
+    category_id INT,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+```
+
+#### 5. **Fees Table**
+This table stores the fee structure for courses.
+
+```sql
+CREATE TABLE fees (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    course_id BIGINT,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_type ENUM('one-time', 'subscription') NOT NULL,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 6. **Payments Table**
+This table records all payment transactions.
+
+```sql
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    fee_id INT,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_method ENUM('credit_card', 'paypal', 'bank_transfer') NOT NULL,
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    stripe_payment_id VARCHAR(255),
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (fee_id) REFERENCES fees(id) ON DELETE CASCADE
+);
+```
+
+#### 7. **Subscriptions Table**
+This table manages subscriptions for courses.
+
+```sql
+CREATE TABLE subscriptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    course_id INT,
+    start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_date TIMESTAMP,
+    stripe_subscription_id VARCHAR(255),
+    payment_status ENUM('paid', 'unpaid') DEFAULT 'unpaid',
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 8. **Lessons Table**
+This table breaks courses into smaller lessons.
+
+```sql
+CREATE TABLE lessons (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    course_id BIGINT,
+    title VARCHAR(255) NOT NULL,
+    content TEXT,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 9. **Assignments Table**
+This table manages assignments given in courses.
+
+```sql
+CREATE TABLE assignments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    course_id BIGINT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    due_date TIMESTAMP,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 10. **Assignment Submissions Table**
+This table tracks submissions of assignments by students.
+
+```sql
+CREATE TABLE assignment_submissions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id BIGINT,
+    student_id BIGINT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    marks_obtained INT,
+    feedback TEXT,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### 11. **Exams Table**
+This table stores information about exams associated with courses.
+
+```sql
+CREATE TABLE exams (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    course_id BIGINT,
+    title VARCHAR(255) NOT NULL,
+    total_marks BIGINT NOT NULL,
+    exam_date TIMESTAMP,
+    duration INT, -- Duration in minutes
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 12. **Results Table**
+This table stores the results of students' exams.
+
+```sql
+CREATE TABLE results (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    exam_id BIGINT,
+    student_id BIGINT,
+    marks_obtained INT NOT NULL,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### 13. **Attendance Table**
+This table tracks daily attendance for students.
+
+```sql
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    course_id INT,
+    date DATE NOT NULL,
+    status ENUM('present', 'absent', 'late') NOT NULL,
+   is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 14. **Library Management Table**
+This table manages books and resources in the library.
+
+```sql
+CREATE TABLE library_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255),
+    category VARCHAR(255),
+    status ENUM('available', 'checked_out') DEFAULT 'available',
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+);
+```
+
+#### 15. **Library Transactions Table**
+This table tracks borrowing and returning of library items.
+
+```sql
+CREATE TABLE library_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT,
+    user_id INT,
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    return_date TIMESTAMP,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### 16. **Notifications Table**
+This table sends notifications to users.
+
+```sql
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### 17. **Extracurricular Activities Table**
+This table manages clubs and extracurricular activities.
+
+```sql
+CREATE TABLE extracurricular_activities (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### 18. **Extracurricular Enrollment Table**
+This table tracks student enrollment in extracurricular activities.
+
+```sql
+CREATE TABLE extracurricular_enrollments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    activity_id INT,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (activity_id) REFERENCES extracurricular_activities(id) ON DELETE CASCADE
+);
+```
+
+### Conclusion
+
+This complete database schema encompasses a wide range of functionalities necessary for a comprehensive educational management system, including user management, course and fee management, assessments, library management, attendance tracking, extracurricular activities, and notifications. Each table is designed with clear relationships, ensuring data integrity and ease of access.
+
+You can further customize this schema based on specific requirements or add additional features as needed. This structure provides a solid foundation for building a fully functional educational platform.
+
+
+To create a history table for managing changes and events within the educational management system, we can implement a general-purpose **History Table** that records significant actions taken by users. This could include changes to user profiles, course modifications, payment transactions, and other important events. 
+
+
+
+### Explanation of the Fields
+
+- **id**: Unique identifier for each history record.
+- **user_id**: ID of the user who performed the action. This links back to the `users` table.
+- **action**: A brief description of the action taken (e.g., "Updated course description", "Paid fee", "Submitted assignment").
+- **entity_type**: The type of entity that the action relates to (e.g., user, course, payment, etc.). This helps in categorizing the history records.
+- **entity_id**: The ID of the affected entity. For example, if the action is related to a course, this would be the ID of the course.
+- **old_value**: The previous value of the affected entity before the change was made (if applicable).
+- **new_value**: The new value of the affected entity after the change (if applicable).
+- **created_at**: Timestamp indicating when the action was recorded.
+
+### Use Cases
+
+1. **User Actions**: Log when a user updates their profile, enrolls in a course, or submits an assignment.
+2. **Course Changes**: Record when a course description is updated, a new course is added, or a course is deleted.
+3. **Payment History**: Keep track of payment actions, including successful and failed transactions.
+4. **Attendance Records**: Log when attendance is marked for a class or if attendance is updated.
+5. **Library Transactions**: Record when items are checked out or returned.
+
+### Example Insert
+
+Here's an example of how to insert a record into the `history` table:
+
+```sql
+INSERT INTO history (user_id, action, entity_type, entity_id, old_value, new_value)
+VALUES (1, 'Updated course description', 'course', 5, 'Old description here', 'New description here');
+```
+
+### Conclusion
+
+The history table is a valuable addition to the educational management system, providing a way to track changes and actions over time. This not only enhances accountability but also facilitates auditing and monitoring of user actions within the system. You can customize the fields and functionality of the history table further based on specific requirements and use cases.
+
+
+*****
+Sure! Below are SQL migration scripts for creating the database tables that cover the comprehensive educational management system we discussed earlier, including users, students, teachers, courses, assignments, subscriptions, fees, and more.
+
+### 1. Create Users Table
+
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('student', 'teacher', 'admin') NOT NULL,
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### 2. Create Students Table
+
+```sql
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNIQUE NOT NULL,
+    enrollment_date DATE NOT NULL,
+    date_of_birth DATE NOT NULL,
+    gender ENUM('male', 'female', 'other'),
+    address TEXT,
+    emergency_contact_name VARCHAR(255),
+    emergency_contact_phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+### 3. Create Teachers Table
+
+```sql
+CREATE TABLE teachers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNIQUE NOT NULL,
+    hire_date DATE NOT NULL,
+    department VARCHAR(255),
+    qualifications TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+### 4. Create Courses Table
+
+```sql
+CREATE TABLE courses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### 5. Create Course Assignments Table
+
+```sql
+CREATE TABLE course_assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    due_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+### 6. Create Student Assignments Table
+
+```sql
+CREATE TABLE student_assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT,
+    student_id INT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    marks_obtained INT,
+    feedback TEXT,
+    status ENUM('submitted', 'graded', 'late', 'missing') DEFAULT 'submitted',
+    FOREIGN KEY (assignment_id) REFERENCES course_assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+```
+
+### 7. Create Enrollments Table
+
+```sql
+CREATE TABLE enrollments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    course_id INT,
+    enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('active', 'completed', 'dropped') DEFAULT 'active',
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+### 8. Create Attendance Table
+
+```sql
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    course_id INT,
+    date DATE NOT NULL,
+    status ENUM('present', 'absent', 'late') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+### 9. Create Exams Table
+
+```sql
+CREATE TABLE exams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT,
+    title VARCHAR(255) NOT NULL,
+    total_marks INT NOT NULL,
+    exam_date TIMESTAMP,
+    duration INT, -- Duration in minutes
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+### 10. Create Results Table
+
+```sql
+CREATE TABLE results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT,
+    student_id INT,
+    marks_obtained INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+```
+
+### 11. Create Evaluations Table
+
+```sql
+CREATE TABLE evaluations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    teacher_id INT,
+    evaluator_id INT,
+    evaluation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    score INT,
+    comments TEXT,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+    FOREIGN KEY (evaluator_id) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+### 12. Create Notifications Table
+
+```sql
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+### 13. Create Subscription Plans Table
+
+```sql
+CREATE TABLE subscription_plans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    amount DECIMAL(10, 2) NOT NULL,
+    duration INT NOT NULL,  -- Duration in months
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### 14. Create Student Subscriptions Table
+
+```sql
+CREATE TABLE student_subscriptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    subscription_plan_id INT,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status ENUM('active', 'inactive', 'expired') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    FOREIGN KEY (subscription_plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
+);
+```
+
+### 15. Create Payments Table
+
+```sql
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_method ENUM('credit_card', 'paypal', 'bank_transfer') NOT NULL,
+    status ENUM('completed', 'pending', 'failed') DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+```
+
+### 16. Create Fee History Table
+
+```sql
+CREATE TABLE fee_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    course_id INT,
+    fee_amount DECIMAL(10, 2) NOT NULL,
+    payment_status ENUM('paid', 'unpaid', 'overdue') DEFAULT 'unpaid',
+    fee_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+### Conclusion
+
+These SQL migration scripts create the necessary tables for a comprehensive educational management system. You can execute these scripts in your database to set up the required structure. Feel free to adjust any fields or data types based on your specific requirements!
+
+Combining the schemas for students, teachers, and a general educational management system into a comprehensive database requires careful consideration of relationships and functionality. Below is a unified schema that includes tables for users, students, teachers, courses, assignments, attendance, evaluations, and more.
+
+### Complete Educational Management System Schema
+
+#### 1. **Users Table**
+Stores information for all users in the system, including students, teachers, and administrators.
+
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('student', 'teacher', 'admin') NOT NULL,
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### 2. **Students Table**
+Specific information about students.
+
+```sql
+CREATE TABLE students (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNIQUE NOT NULL,
+    enrollment_date DATE NOT NULL,
+    date_of_birth DATE NOT NULL,
+    gender ENUM('male', 'female', 'other'),
+    address TEXT,
+    emergency_contact_name VARCHAR(255),
+    emergency_contact_phone VARCHAR(20),
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### 3. **Teachers Table**
+Specific information about teachers.
+
+```sql
+CREATE TABLE teachers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNIQUE NOT NULL,
+    hire_date DATE NOT NULL,
+    department VARCHAR(255),
+    qualifications TEXT,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### 4. **Courses Table**
+Information about courses offered by the institution.
+
+```sql
+CREATE TABLE courses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### 5. **Course Assignments Table**
+Assignments created by teachers for their courses.
+
+```sql
+CREATE TABLE course_assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    due_date TIMESTAMP,
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 6. **Student Assignments Table**
+Tracks submissions of assignments by students.
+
+```sql
+CREATE TABLE student_assignments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id BIGINT,
+    student_id BIGINT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    marks_obtained INT,
+    feedback TEXT,
+    status ENUM('submitted', 'graded', 'late', 'missing') DEFAULT 'submitted',
+    is_active TINYINT DEFAULT 1,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (assignment_id) REFERENCES course_assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+```
+
+#### 7. **Enrollments Table**
+Records which students are enrolled in which courses.
+
+```sql
+CREATE TABLE enrollments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    course_id INT,
+    enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('active', 'completed', 'dropped') DEFAULT 'active',
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 8. **Attendance Table**
+Tracks attendance for both students and teachers.
+
+```sql
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT, -- Can reference either students or teachers
+    course_id INT,
+    date DATE NOT NULL,
+    status ENUM('present', 'absent', 'late') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 9. **Exams Table**
+Information about exams associated with courses.
+
+```sql
+CREATE TABLE exams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT,
+    title VARCHAR(255) NOT NULL,
+    total_marks INT NOT NULL,
+    exam_date TIMESTAMP,
+    duration INT, -- Duration in minutes
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+```
+
+#### 10. **Results Table**
+Stores the results of students' exams.
+
+```sql
+CREATE TABLE results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT,
+    student_id INT,
+    marks_obtained INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+```
+
+#### 11. **Evaluations Table**
+Performance evaluations for teachers.
+
+```sql
+CREATE TABLE evaluations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    teacher_id INT,
+    evaluator_id INT, -- Can reference an admin or a peer teacher
+    evaluation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    score INT, -- Score or rating
+    comments TEXT,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+    FOREIGN KEY (evaluator_id) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+#### 12. **Notifications Table**
+Sends notifications to students and teachers.
+
+```sql
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT, -- Can reference either students or teachers
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+### Conclusion
+
+This combined schema encompasses the core functionalities of a comprehensive educational management system, including management of users (students and teachers), courses, assignments, attendance, exams, results, evaluations, and notifications. 
+
+### Key Features
+1. **User Management**: Centralized table for users with roles to differentiate between students, teachers, and administrators.
+2. **Course Management**: Clear structure for managing courses and related assignments.
+3. **Attendance Tracking**: Unified attendance management for both students and teachers.
+4. **Performance Evaluation**: Mechanism to evaluate teacher performance.
+5. **Notification System**: Sends messages to users about important updates or information.
+
+This structure can be further customized or expanded based on specific institutional needs or additional functionalities.
+
+
+The combined schema I provided includes most of the essential tables for a comprehensive educational management system focused on students, teachers, and their interactions. However, depending on specific requirements and features you might want to include, here are some additional tables and features you could consider incorporating:
+
+### Additional Tables
+
+1. **Fees and Payments Table**
+   To manage fees for courses and student payments.
+
+   ```sql
+   CREATE TABLE fees (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       student_id INT,
+       course_id INT,
+       amount DECIMAL(10, 2) NOT NULL,
+       payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       status ENUM('paid', 'unpaid', 'overdue') DEFAULT 'unpaid',
+       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+       FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+   );
+   ```
+
+2. **Library Items Table**
+   To manage books and resources in the library.
+
+   ```sql
+   CREATE TABLE library_items (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       title VARCHAR(255) NOT NULL,
+       author VARCHAR(255),
+       category VARCHAR(255),
+       status ENUM('available', 'checked_out') DEFAULT 'available',
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+   );
+   ```
+
+3. **Library Transactions Table**
+   To track the borrowing and returning of library items.
+
+   ```sql
+   CREATE TABLE library_transactions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       item_id INT,
+       student_id INT,
+       transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       return_date TIMESTAMP,
+       FOREIGN KEY (item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+   );
+   ```
+
+4. **Extracurricular Activities Table**
+   To manage clubs, sports, and other extracurricular activities.
+
+   ```sql
+   CREATE TABLE extracurricular_activities (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       name VARCHAR(255) NOT NULL,
+       description TEXT,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+   );
+   ```
+
+5. **Activity Enrollments Table**
+   To record student participation in extracurricular activities.
+
+   ```sql
+   CREATE TABLE activity_enrollments (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       student_id INT,
+       activity_id INT,
+       enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+       FOREIGN KEY (activity_id) REFERENCES extracurricular_activities(id) ON DELETE CASCADE
+   );
+   ```
+
+### Considerations for Inclusion
+
+- **Data Integrity**: Ensure that foreign keys and relationships between tables maintain data integrity across the system.
+- **Scalability**: Consider how the schema might evolve as the institution grows or changes its offerings.
+- **Performance**: Optimize indexes and queries based on anticipated usage patterns.
+
+### Conclusion
+
+While the initial schema covers many core functionalities, these additional tables enhance the system’s capabilities to handle various aspects of educational management. Depending on the specific needs of your institution, you may want to include some or all of these additional tables to create a more robust and comprehensive management system.
+
+
+
+**************************************
+### History Table
+
+Here’s a proposed schema for the `history` table:
+
+```sql
+CREATE TABLE history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    action VARCHAR(255) NOT NULL,  -- Description of the action taken
+    entity_type ENUM('user', 'course', 'payment', 'assignment', 'exam', 'attendance', 'library', 'subscription', 'notification', 'extracurricular') NOT NULL,  -- Type of entity being affected
+    entity_id INT,  -- ID of the entity being affected
+    old_value TEXT,  -- Previous value (if applicable)
+    new_value TEXT,  -- New value (if applicable)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Time when the action was taken
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+
+
+
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+
+class AuthController extends Controller
+{
+    public function register(Request $request)
+    {
+        // Validate incoming request
+        $request->validate([
+            'encrypted' => 'required|string',
+            'iv' => 'required|string',
+        ]);
+
+        // Get the encrypted data and IV from the request
+        $encryptedData = $request->input('encrypted');
+        $iv = base64_decode($request->input('iv'));
+
+        // Retrieve the AES key from the environment variable
+        $aesKey = env('AES_KEY');
+
+        // Decrypt the data
+        $decryptedData = openssl_decrypt(
+            base64_decode($encryptedData),
+            'aes-256-cbc',
+            $aesKey,
+            OPENSSL_RAW_DATA,
+            $iv
+        );
+
+        if ($decryptedData === false) {
+            Log::error('Decryption failed: ' . openssl_error_string());
+            return response()->json(['error' => 'Decryption failed'], 500);
+        }
+
+        // Decode the decrypted JSON data
+        $credentials = json_decode($decryptedData, true);
+
+        // Validate the decrypted data
+        $validator = Validator::make($credentials, [
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'mobile_number' => 'required|string|max:13',
+            'country_code' => 'nullable|string|min:3',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['code' => 422, 'errors' => $validator->errors()], 422);
+        }
+
+        // Prepare user data for registration
+        $userData = [
+            'full_name' => $credentials['full_name'],
+            'email' => $credentials['email'],
+            'password' => Hash::make($credentials['password']),
+            'mobile_number' => $credentials['mobile_number'],
+            'country_code' => $credentials['country_code'] ?? null,
+        ];
+
+        // Create the user
+        $user = User::create($userData);
+
+        return response()->json(['code' => 201, 'message' => 'User registered successfully.', 'data' => $user], 201);
+    }
+}

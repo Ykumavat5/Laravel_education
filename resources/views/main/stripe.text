@@ -1,0 +1,88 @@
+For testing UPI payments with Stripe, you'll want to follow these steps to set up your environment for testing:
+
+### 1. Use Stripe's Test Mode
+
+Make sure your Stripe account is in test mode. You can toggle between live and test mode in your Stripe dashboard.
+
+### 2. Use Test API Keys
+
+Get your test API keys from the Stripe dashboard:
+
+- **Test Secret Key**: For backend API calls.
+- **Test Publishable Key**: For frontend integration.
+
+### 3. Create a Payment Intent for UPI
+
+Here's how to create a payment intent in your testing environment:
+
+#### Backend Code Example (PHP)
+
+```php
+use Stripe\Stripe;
+use Stripe\PaymentIntent;
+
+public function createPaymentIntent(Request $request)
+{
+    // Set your secret key
+    Stripe::setApiKey(env('STRIPE_SECRET'));
+
+    // Create a PaymentIntent
+    $paymentIntent = PaymentIntent::create([
+        'amount' => 1000, // Amount in cents (e.g., 10.00 INR)
+        'currency' => 'inr',
+        'payment_method_types' => ['upi'], // Specify UPI
+    ]);
+
+    return response()->json(['clientSecret' => $paymentIntent->client_secret]);
+}
+```
+
+### 4. Frontend Integration
+
+Here’s how you can use Stripe.js to handle the payment on the frontend:
+
+#### Frontend Code Example (JavaScript)
+
+```html
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    const stripe = Stripe('your-test-publishable-key');
+
+    // Call this function when you're ready to confirm the payment
+    async function confirmPayment(clientSecret) {
+        const { error } = await stripe.confirmPayment({
+            clientSecret: clientSecret,
+            payment_method: {
+                upi: {
+                    vpa: 'example@upi', // Example UPI ID (not real)
+                },
+            },
+        });
+
+        if (error) {
+            // Show error to your customer
+            console.error(error);
+        } else {
+            // Payment successful
+            console.log('Payment successful');
+        }
+    }
+</script>
+```
+
+### 5. Test UPI Payments
+
+When testing UPI payments, you can use any valid UPI ID format. Note that during testing, no actual transactions will occur, and you can simulate different scenarios, such as successful payments and failures.
+
+### 6. View Test Transactions
+
+In your Stripe dashboard, you can view test transactions to see how they were processed. Look for the payments made during your testing phase to confirm that everything is working as expected.
+
+### Summary
+
+- Use test mode and test API keys from your Stripe account.
+- Create a payment intent for UPI using the backend code.
+- Use Stripe.js on the frontend to confirm the payment.
+- You can simulate UPI transactions using any valid UPI ID format.
+
+For further details, refer to the [Stripe UPI documentation](https://stripe.com/docs/payments/upi) and their [testing guidelines](https://stripe.com/docs/testing).
